@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/
+src/render/fontdata.ts
+src/render/core-icons.json

@@ -35,7 +35,7 @@ describe("install module", () => {
       mockFetch([{ json: { device_code: "dc123", user_code: "UC123", verification_uri: "https://github.com/login/device", interval: 5, expires_in: 1800 } }]);
       const code = await requestCode();
       expect(code).toEqual({ device_code: "dc123", user_code: "UC123", verification_uri: "https://github.com/login/device", interval: 5, expires_in: 1800 });
-      expect(global.fetch).toHaveBeenCalledWith("https://expressive-profile-auth.sepehr-zahede.workers.dev/api/code", expect.objectContaining({ method: "POST" }));
+      expect(global.fetch).toHaveBeenCalledWith("https://expressive-profile-auth.expressive-profile.workers.dev/api/code", expect.objectContaining({ method: "POST" }));
     });
     it("throws on missing device_code", async () => {
       mockFetch([{ json: {} }]);

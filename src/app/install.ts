@@ -2,9 +2,9 @@
 // Can be overridden by localStorage key "ep:auth-url" or VITE_AUTH_URL at build time
 const AUTH = (() => {
   try {
-    return localStorage.getItem("ep:auth-url") || import.meta.env.VITE_AUTH_URL || "https://expressive-profile-auth.sepehr-zahede.workers.dev/api";
+    return localStorage.getItem("ep:auth-url") || import.meta.env.VITE_AUTH_URL || "https://expressive-profile-auth.expressive-profile.workers.dev/api";
   } catch {
-    return import.meta.env.VITE_AUTH_URL || "https://expressive-profile-auth.sepehr-zahede.workers.dev/api";
+    return import.meta.env.VITE_AUTH_URL || "https://expressive-profile-auth.expressive-profile.workers.dev/api";
   }
 })();
 const API = "https://api.github.com";

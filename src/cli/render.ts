@@ -53,7 +53,14 @@ function languages(nodes: RawRepo[]): [string, number][] {
 
 async function fetchData(login: string): Promise<Data> {
   const LANGS = "languages(first:10,orderBy:{field:SIZE,direction:DESC}){edges{size node{name}}}";
-  const { user } = await graphql<{ user: any }>(
+  interface UserData {
+    followers: { totalCount: number };
+    repositories: { totalCount: number; nodes: RawRepo[] };
+    pinnedItems: { nodes: RawRepo[] };
+    contributionsCollection: { contributionCalendar: { totalContributions: number; weeks: Array<{ contributionDays: Array<{ contributionCount: number; date: string; weekday: number }> }> } };
+  }
+
+const { user } = await graphql<{ user: UserData }>(
     `query($login:String!){user(login:$login){
       followers{totalCount}
       repositories(ownerAffiliations:OWNER,privacy:PUBLIC,first:100,orderBy:{field:STARGAZERS,direction:DESC}){totalCount nodes{${REPO} ${LANGS}}}
@@ -64,9 +71,11 @@ async function fetchData(login: string): Promise<Data> {
   const nodes: RawRepo[] = user.repositories.nodes;
   let langs = languages(nodes);
   try {
-    const { viewer } = await graphql<{ viewer: any }>(`{viewer{login repositories(ownerAffiliations:OWNER,first:100){nodes{isFork ${LANGS}}}}}`);
+    const { viewer } = await graphql<{ viewer: { login: string; repositories: { nodes: RawRepo[] } } }>(`{viewer{login repositories(ownerAffiliations:OWNER,first:100){nodes{isFork ${LANGS}}}}}`);
     if (viewer.login.toLowerCase() === login.toLowerCase()) langs = languages(viewer.repositories.nodes);
-  } catch {}
+  } catch {
+    // ignore viewer fetch errors
+  }
   const today = new Date().toISOString().slice(0, 10);
   const days: (Day | null)[][] = [];
   for (const w of user.contributionsCollection.contributionCalendar.weeks.slice(-3)) {
@@ -75,10 +84,13 @@ async function fetchData(login: string): Promise<Data> {
     days.push(row);
   }
   while (days.length < 3) days.unshift(Array(7).fill(null));
-  const counts: number[] = user.contributionsCollection.contributionCalendar.weeks
-    .flatMap((w: any) => w.contributionDays)
-    .filter((d: any) => d.date <= today)
-    .map((d: any) => d.contributionCount);
+  interface ContributionDay { contributionCount: number; date: string }
+interface ContributionWeek { contributionDays: ContributionDay[] }
+
+const counts: number[] = user.contributionsCollection.contributionCalendar.weeks
+    .flatMap((w: ContributionWeek) => w.contributionDays)
+    .filter((d: ContributionDay) => d.date <= today)
+    .map((d: ContributionDay) => d.contributionCount);
   return {
     stars: nodes.filter((r) => !r.isFork).reduce((a, r) => a + r.stargazerCount, 0),
     contributions: user.contributionsCollection.contributionCalendar.totalContributions,
@@ -123,11 +135,11 @@ async function main() {
   const cached = existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : null;
   const data = await fetchData(config.login);
   const ava = await avatar(config.login);
-  const { days, ...rest } = data;
+  const { days: _days, ...rest } = data;
   const day = new Date().toISOString().slice(0, 10);
   const key = hash(JSON.stringify({ rest, day, avatar: ava ? hash(ava) : null, config }));
   if (process.env.GITHUB_EVENT_NAME === "schedule" && cached?.key === key) {
-    console.log("no changes");
+    process.stdout.write("no changes\n");
     return;
   }
   const files = render(config, data, icons, ava);
@@ -139,10 +151,10 @@ async function main() {
   }
   writeFileSync("README.md", readme(config, data, files));
   writeFileSync(cacheFile, JSON.stringify({ key, ...data }, null, 1));
-  console.log("done");
+  process.stdout.write("done\n");
 }
 
 main().catch((e) => {
-  console.error(e);
+  process.stderr.write(`${e}\n`);
   process.exit(1);
 });

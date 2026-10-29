@@ -28,7 +28,9 @@ function read<T>(key: string, fallback: T): T {
 function write(key: string, v: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(v));
-  } catch {}
+  } catch {
+    // ignore localStorage errors
+  }
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -294,7 +296,7 @@ export default function App() {
         setLoading(false);
       }
     },
-    [t],
+    [],
   );
 
   useEffect(() => {
@@ -303,7 +305,7 @@ export default function App() {
       setToast(t.shared);
       history.replaceState(null, "", location.pathname + location.search);
     }
-  }, []);
+  }, [isDemo, from, load, shared, config.login, setToast]);
 
   const share = async () => {
     const url = `${location.origin}${location.pathname}#c=${encode(config)}`;
@@ -349,7 +351,7 @@ export default function App() {
 
   useEffect(() => {
     if (avatarSeed && config.seedFromAvatar && config.seed !== avatarSeed) setConfig((c) => ({ ...c, seed: avatarSeed }));
-  }, [avatarSeed, config.seedFromAvatar]);
+  }, [avatarSeed, config.seedFromAvatar, config.seed]);
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
@@ -363,7 +365,7 @@ export default function App() {
   }, []);
 
   const deferred = useDeferredValue(config);
-  const files = useMemo(() => render(deferred, data, store, avatar, [dark ? "dark" : "light"]), [deferred, data, avatar, dark, iconsTick]);
+  const files = useMemo(() => render(deferred, data, store, avatar, [dark ? "dark" : "light"]), [deferred, data, avatar, dark, iconsTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const urls = useBlobUrls(files);
   const src = (name: string) => urls[`assets/${name}-${dark ? "dark" : "light"}.svg`];
   const attr = (name: string, key: string) => Number(new RegExp(`${key}="([0-9.]+)"`).exec(files[`assets/${name}-${dark ? "dark" : "light"}.svg`] ?? "")?.[1] ?? 0);
@@ -622,7 +624,10 @@ function BlockView({ id, config, data, src, size, fill, ratio }: { id: BlockId; 
 function LinkRow({ prefix, count, src, size, fill, ratio }: { prefix: string; count: number; src: (n: string) => string; size: (n: string) => number; fill: (n: string) => number; ratio: (n: string) => number }) {
   const card = !!src(`${prefix}-l`);
   const names = Array.from({ length: count }, (_, i) => `${prefix}-${i + 1}`);
-  if (card) names.unshift(`${prefix}-l`), names.push(`${prefix}-r`);
+  if (card) {
+    names.unshift(`${prefix}-l`);
+    names.push(`${prefix}-r`);
+  }
   return (
     <div className={`buttons${card ? " row-card" : ""}`}>
       {names.map((n) => (
@@ -807,8 +812,8 @@ function GetDialog({ t, config, data, avatar, onLogin, onClose }: { t: Dict; con
 
 function ZipSteps({ t, login, onAgain }: { t: Dict; login: string; onAgain: () => void }) {
   const steps: [string, ReactNode][] = [
-    [t.dl1, <Button kind="tonal" icon="add" href={`https://github.com/new?name=${encodeURIComponent(login)}&visibility=public`}>{t.dl1Btn}</Button>],
-    [t.dl2, <><Button kind="tonal" icon="upload" href={`https://github.com/${login}/${login}/upload/main`}>{t.dl2Btn}</Button><p className="note">{t.dl2Mac}</p></>],
+    [t.dl1, <Button key="dl1" kind="tonal" icon="add" href={`https://github.com/new?name=${encodeURIComponent(login)}&visibility=public`}>{t.dl1Btn}</Button>],
+    [t.dl2, <><Button key="dl2" kind="tonal" icon="upload" href={`https://github.com/${login}/${login}/upload/main`}>{t.dl2Btn}</Button><p className="note">{t.dl2Mac}</p></>],
     [t.dl3, null],
   ];
   return (

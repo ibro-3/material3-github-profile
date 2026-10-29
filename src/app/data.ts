@@ -91,7 +91,7 @@ async function toDataUrl(url: string) {
   }
 }
 
-function daysFromEvents(events: any[]) {
+function daysFromEvents(events: Array<{ created_at: string; type: string; payload?: { distinct_size?: number; size?: number; action?: string } }>) {
   const counts: Record<string, number> = {};
   for (const e of events) {
     const key = e.created_at.slice(0, 10);
@@ -146,7 +146,9 @@ function save(key: string, v: Loaded) {
       if (k?.startsWith("ep:gh:") && k !== `ep:gh:${key}`) localStorage.removeItem(k);
     }
     localStorage.setItem(`ep:gh:${key}`, JSON.stringify({ t: Date.now(), v }));
-  } catch {}
+  } catch {
+    // ignore localStorage errors
+  }
 }
 
 export function loadProfile(login: string, force = false): Promise<Loaded> {
@@ -177,7 +179,7 @@ async function fetchProfile(login: string) {
     api(`users/${encodeURIComponent(login)}/repos?per_page=100&type=owner&sort=pushed`),
     api(`users/${encodeURIComponent(login)}/events/public?per_page=100`).catch(() => []),
   ]);
-  const all: Repo[] = repos.map((r: any) => ({
+  const all: Repo[] = repos.map((r: { name: string; html_url: string; description: string | null; fork: boolean; stargazers_count: number; language: string | null; topics?: string[] }) => ({
     name: r.name,
     url: r.html_url,
     text: (r.description || "").trim(),

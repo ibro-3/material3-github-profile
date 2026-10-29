@@ -199,7 +199,7 @@ function IconPicker({ onPick, onClose, t, prefer }: { onPick: (v: string) => voi
       .filter((k) => !k.endsWith("#fill") && (!query || k.includes(query)))
       .slice(0, 180)
       .map((k) => [k, k.replace(/_/g, " ")] as const);
-  }, [tab, q, ready]);
+  }, [tab, q]);
   return (
     <motion.div className="scrim" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.div

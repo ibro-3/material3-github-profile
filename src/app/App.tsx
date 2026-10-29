@@ -3,7 +3,7 @@ import { AnimatePresence, motion, Reorder, useDragControls } from "motion/react"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { projectList } from "../render/blocks";
 import { deflateSync, inflateSync, strFromU8, strToU8 } from "fflate";
-import { BLOCKS, defaults, palette, render, REPO_URL, slug, usedIcons, type BlockId, type Config, type Data, type ShapeName } from "../render";
+import { BLOCKS, defaults, palette, render, REPO_URL, slug, usedIcons, type BlockId, type Config, type Data, type Item, type LinkButton, type Override, type SchemeName, type ShapeName } from "../render";
 import { buildZip, DEMO, hasIcon, LoadError, loadAllIcons, loadProfile, profileFiles, store } from "./data";
 import { existingReadme, install, InstallError, requestCode, waitForToken, whoami, type DeviceCode } from "./install";
 import { SheetBody, type SheetId } from "./editors";
@@ -31,21 +31,103 @@ function write(key: string, v: unknown) {
   } catch {}
 }
 
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const objs = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.filter(isObj) : []);
+const str = (v: unknown, fb: string) => (typeof v === "string" ? v : fb);
+const bool = <T,>(v: unknown, fb: T) => (typeof v === "boolean" ? v : fb);
+const ids = (v: unknown): BlockId[] =>
+  Array.isArray(v) ? [...new Set(v.filter((b): b is BlockId => typeof b === "string" && (BLOCKS as string[]).includes(b)))] : [];
+const pickItems = (v: unknown, fb: Item[]): Item[] =>
+  Array.isArray(v) ? v.filter(isObj).map((x) => ({ icon: str(x.icon, ""), label: str(x.label, "") })) : fb;
+
 function migrate(c: Config | null): Config {
   const base = defaults(DEMO_LOGIN, "en");
-  if (!c || c.version !== 1) return base;
+  if (!c || typeof c !== "object" || c.version !== 1) return base;
+  const o = c as unknown as Record<string, unknown>;
+  const sec = (k: string) => (isObj(o[k]) ? (o[k] as Record<string, unknown>) : {});
+  const hero = sec("hero");
+  const about = sec("about");
+  const stack = sec("stack");
+  const projects = sec("projects");
+  const stats = sec("stats");
+  const streak = sec("streak");
+  const socials = sec("socials");
+  const buttons = sec("buttons");
+  const overrides: Record<string, Override> = {};
+  for (const [name, v] of Object.entries(isObj(projects.overrides) ? projects.overrides : {})) {
+    if (!isObj(v)) continue;
+    overrides[name] = {
+      text: typeof v.text === "string" ? v.text : undefined,
+      icon: typeof v.icon === "string" ? v.icon : undefined,
+      shape: typeof v.shape === "string" ? (v.shape as ShapeName) : undefined,
+    };
+  }
   return {
     ...base,
-    ...c,
-    hero: { ...base.hero, ...c.hero },
-    about: { ...base.about, ...c.about },
-    stack: { ...base.stack, ...c.stack },
-    projects: { ...base.projects, ...c.projects },
-    stats: { ...base.stats, ...c.stats },
-    buttons: { ...base.buttons, ...c.buttons },
-    streak: { ...base.streak, ...c.streak },
-    socials: { ...base.socials, ...c.socials },
-    order: placeNew(c.order.filter((b) => BLOCKS.includes(b))),
+    login: str(o.login, base.login),
+    seed: str(o.seed, base.seed),
+    seedFromAvatar: bool(o.seedFromAvatar, base.seedFromAvatar),
+    scheme: o.scheme as SchemeName, // palette falls back to SchemeTonalSpot for unknown values
+    motion: bool(o.motion, base.motion),
+    iconFill: bool(o.iconFill, base.iconFill),
+    order: placeNew(ids(o.order)),
+    hidden: ids(o.hidden),
+    hero: {
+      ...base.hero,
+      greeting: str(hero.greeting, base.hero.greeting),
+      name: str(hero.name, base.hero.name),
+      subtitle: str(hero.subtitle, base.hero.subtitle),
+      typing: bool(hero.typing, base.hero.typing),
+      avatarShape: typeof hero.avatarShape === "string" ? (hero.avatarShape as ShapeName) : base.hero.avatarShape, // radii() falls back to cookie
+      chips: pickItems(hero.chips, base.hero.chips),
+    },
+    about: { title: str(about.title, base.about.title), items: pickItems(about.items, base.about.items) },
+    stack: {
+      title: str(stack.title, base.stack.title),
+      groups: objs(stack.groups).map((g) => ({ title: str(g.title, ""), items: pickItems(g.items, []) })),
+    },
+    projects: {
+      source: projects.source === "manual" ? "manual" : "pinned",
+      repos: Array.isArray(projects.repos)
+        ? projects.repos.filter((r): r is string => typeof r === "string")
+        : base.projects.repos,
+      overrides,
+      empty: str(projects.empty, base.projects.empty),
+      fork: str(projects.fork, base.projects.fork),
+    },
+    stats: {
+      title: str(stats.title, base.stats.title),
+      stars: str(stats.stars, base.stats.stars),
+      contributions: str(stats.contributions, base.stats.contributions),
+      repos: str(stats.repos, base.stats.repos),
+      followers: str(stats.followers, base.stats.followers),
+      calendar: str(stats.calendar, base.stats.calendar),
+      weekdays: str(stats.weekdays, base.stats.weekdays),
+      languages: str(stats.languages, base.stats.languages),
+      showLanguages: bool(stats.showLanguages, base.stats.showLanguages),
+    },
+    streak: {
+      title: str(streak.title, base.streak.title),
+      current: str(streak.current, base.streak.current),
+      longest: str(streak.longest, base.streak.longest),
+      days: str(streak.days, base.streak.days),
+    },
+    socials: {
+      items: objs(socials.items).map((s) => ({ icon: str(s.icon, ""), url: str(s.url, "") })),
+      variant: socials.variant === "icon" ? "icon" : "chip",
+      fill: socials.fill === "filled" || socials.fill === "outlined" || socials.fill === "brand" ? socials.fill : "tonal",
+      shape: typeof socials.shape === "string" ? (socials.shape as ShapeName) : undefined,
+      card: bool(socials.card, true),
+    },
+    buttons: {
+      items: objs(buttons.items).map((b): LinkButton => ({
+        icon: str(b.icon, ""),
+        label: str(b.label, ""),
+        url: str(b.url, ""),
+        style: b.style === "tonal" ? "tonal" : "filled",
+      })),
+      card: bool(buttons.card, base.buttons.card),
+    },
   };
 }
 
@@ -89,6 +171,7 @@ function remixFrom(theirs: Config, login: string): Config {
     seedFromAvatar: false,
     scheme: theirs.scheme ?? base.scheme,
     motion: theirs.motion ?? base.motion,
+    iconFill: theirs.iconFill ?? base.iconFill,
     order: theirs.order ?? base.order,
     hidden: theirs.hidden ?? base.hidden,
     hero: { ...base.hero, avatarShape: theirs.hero?.avatarShape ?? base.hero.avatarShape, typing: theirs.hero?.typing ?? base.hero.typing },
@@ -110,6 +193,13 @@ function useBlobUrls(files: Record<string, string>) {
       const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
       cache.current.set(path, { svg, url });
       out[path] = url;
+    }
+    // paths that disappeared (block hidden, project renamed) — drop and revoke
+    for (const [path, hit] of [...cache.current]) {
+      if (!(path in out)) {
+        cache.current.delete(path);
+        setTimeout(() => URL.revokeObjectURL(hit.url), 4000);
+      }
     }
     return out;
   }, [files]);
@@ -598,7 +688,7 @@ function GetDialog({ t, config, data, avatar, onLogin, onClose }: { t: Dict; con
       token.current = await waitForToken(dc, abort.current.signal);
       const who = await whoami(token.current);
       setLogin(who);
-      if (who !== config.login) onLogin(who);
+      if (who.toLowerCase() !== config.login.toLowerCase()) onLogin(who);
       if (await existingReadme(token.current, who)) setPhase("confirm");
       else await upload(who);
     } catch (e) {
@@ -760,7 +850,9 @@ function Landing({ login, t, dark, onRemix, onScratch }: { login: string; t: Dic
   const hero = useMemo(() => {
     if (!theirs) return null;
     const theme = dark ? "dark" : "light";
-    const svg = render(theirs, view?.data ?? DEMO, store, view?.avatar ?? null, [theme])[`assets/hero-${theme}.svg`];
+    // the landing always shows the hero, even if the shared config hides that block
+    const c = { ...theirs, hidden: theirs.hidden.filter((b) => b !== "hero") };
+    const svg = render(c, view?.data ?? DEMO, store, view?.avatar ?? null, [theme])[`assets/hero-${theme}.svg`];
     return URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   }, [theirs, view, dark]);
   useEffect(() => () => {

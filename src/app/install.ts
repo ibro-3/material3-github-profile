@@ -31,7 +31,7 @@ export async function waitForToken(code: DeviceCode, signal: AbortSignal): Promi
     if (signal.aborted) throw new InstallError("cancel");
     const j = await post("token", { device_code: code.device_code });
     if (j.access_token) return j.access_token;
-    if (j.error === "slow_down") interval += 5000;
+    if (j.error === "slow_down") interval = Number(j.interval) * 1000 || interval + 5000;
     else if (j.error === "access_denied") throw new InstallError("denied");
     else if (j.error === "expired_token") throw new InstallError("expired");
     else if (j.error !== "authorization_pending") throw new InstallError("auth");
@@ -91,6 +91,7 @@ export async function install(token: string, login: string, files: Record<string
   if (ref.status !== 200) throw new InstallError("repo");
   const head = ref.body.object.sha;
   const commit = await gh(token, `${full}/git/commits/${head}`);
+  if (commit.status !== 200) throw new InstallError("upload");
   step(1);
   const tree: { path: string; mode: string; type: string; sha: string }[] = [];
   const entries = Object.entries(files);

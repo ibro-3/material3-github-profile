@@ -31,7 +31,7 @@ Generator of GitHub profile READMEs in the Material 3 Expressive style. The prof
 - Typing animation for the subtitle and animations in every card. Animations can be turned off.
 - Icon search across Material Symbols and Simple Icons.
 - Templates, a shareable link to a setup and a "make one like this" page for any profile built with the generator.
-- English and Russian interface.
+- English interface. Text in profile content supports Cyrillic.
 
 ## Screenshots
 
@@ -95,6 +95,7 @@ on:
     paths:
       - profile.json
       - .profile/icons.json
+      - .github/workflows/expressive-profile.yml
 
 permissions:
   contents: write

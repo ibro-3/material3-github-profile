@@ -20,10 +20,23 @@ export function cors(req, res) {
 }
 
 export async function forward(res, url, body) {
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: CLIENT_ID, ...body }),
-  });
-  res.status(r.status).json(await r.json());
+  let r;
+  try {
+    r = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: CLIENT_ID, ...body }),
+    });
+  } catch {
+    res.status(502).json({ error: "unavailable" });
+    return;
+  }
+  const text = await r.text().catch(() => "");
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { error: "unavailable" };
+  }
+  res.status(r.status).json(data);
 }

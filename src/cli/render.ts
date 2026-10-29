@@ -9,7 +9,7 @@ const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
 async function graphql<T>(query: string, variables: object = {}): Promise<T> {
   const r = await fetch("https://api.github.com/graphql", {
     method: "POST",
-    headers: { Authorization: `bearer ${token}`, "User-Agent": "expressive-profile" },
+    headers: { Authorization: `bearer ${token}`, "User-Agent": "material3-github-profile" },
     body: JSON.stringify({ query, variables }),
   });
   const j = await r.json();
@@ -130,7 +130,6 @@ async function main() {
     console.log("no changes");
     return;
   }
-  writeFileSync(cacheFile, JSON.stringify({ key, ...data }, null, 1));
   const files = render(config, data, icons, ava);
   mkdirSync("assets", { recursive: true });
   for (const f of readdirSync("assets")) if (f.endsWith(".svg") && !files[`assets/${f}`]) unlinkSync(`assets/${f}`);
@@ -139,6 +138,7 @@ async function main() {
     writeFileSync(path, content);
   }
   writeFileSync("README.md", readme(config, data, files));
+  writeFileSync(cacheFile, JSON.stringify({ key, ...data }, null, 1));
   console.log("done");
 }
 

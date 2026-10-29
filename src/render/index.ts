@@ -157,20 +157,21 @@ export function withFill(icons: Icons): Icons {
 export function render(c: Config, d: Data, all: Icons, avatar: string | null, themes: ("light" | "dark")[] = ["light", "dark"]) {
   const icons = c.iconFill === false ? all : withFill(all);
   const files: Record<string, string> = {};
-  const repos = projectList(c, d);
+  const on = (id: BlockId) => !c.hidden.includes(id);
+  const repos = on("projects") ? projectList(c, d) : [];
   for (const theme of themes) {
     const p = palette(c.seed, c.scheme, theme === "dark");
     const ctx = { c, d, p, i: icons };
     const put = (name: string, svg: string) => (files[`assets/${name}-${theme}.svg`] = svg);
-    put("hero", hero(ctx, avatar));
-    put("about", about(ctx));
-    put("stack", stack(ctx));
-    put("stats", stats(ctx));
-    put("wave", wave(ctx));
-    put("streak", streak(ctx));
-    for (const [name, svg] of Object.entries(socials(ctx))) put(name, svg);
-    for (const [name, svg] of Object.entries(buttons(ctx))) put(name, svg);
-    put("credit", credit(ctx));
+    if (on("hero")) put("hero", hero(ctx, avatar));
+    if (on("about")) put("about", about(ctx));
+    if (on("stack")) put("stack", stack(ctx));
+    if (on("stats")) put("stats", stats(ctx));
+    if (on("wave")) put("wave", wave(ctx));
+    if (on("streak")) put("streak", streak(ctx));
+    if (on("socials")) for (const [name, svg] of Object.entries(socials(ctx))) put(name, svg);
+    if (on("buttons")) for (const [name, svg] of Object.entries(buttons(ctx))) put(name, svg);
+    put("credit", credit(ctx)); // always present: preview footer and readme credit line
     repos.forEach((r, n) => put(`project-${slug(r.name)}`, card(ctx, r, n)));
   }
   return files;

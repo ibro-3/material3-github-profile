@@ -160,7 +160,8 @@ export function loadProfile(login: string, force = false): Promise<Loaded> {
         return v;
       },
       (e) => {
-        cache.delete(key);
+        // only drop ourselves; a forced refresh may have already replaced this entry
+        if (cache.get(key) === p) cache.delete(key);
         if (e instanceof LoadError && e.message === "limit" && hit) return { ...hit.v, stale: true };
         throw e;
       },
@@ -237,6 +238,10 @@ on:
       - profile.json
       - .profile/icons.json
       - .github/workflows/expressive-profile.yml
+
+concurrency:
+  group: expressive-profile
+  cancel-in-progress: true
 
 permissions:
   contents: write

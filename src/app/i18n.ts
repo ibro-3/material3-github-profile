@@ -147,6 +147,11 @@ export const dict = {
     expired: "The code expired.",
     repo: "Could not create the repository.",
     upload: "Could not upload the files.",
+    network: "Network error. Check your connection.",
+    http_404: "Auth service not found. Is the proxy deployed?",
+    http_403: "Auth service forbidden. Check CORS settings.",
+    http_500: "Auth service error. Check proxy logs.",
+    http_502: "Auth service unreachable. Is the proxy deployed?",
   },
 };
 

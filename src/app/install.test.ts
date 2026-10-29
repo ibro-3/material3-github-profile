@@ -16,6 +16,7 @@ describe("install module", () => {
       const r = responses[callIndex] || responses[responses.length - 1];
       callIndex++;
       return {
+        ok: (r.status ?? 200) >= 200 && (r.status ?? 200) < 300,
         status: r.status ?? 200,
         json: async () => r.json,
         text: async () => JSON.stringify(r.json),

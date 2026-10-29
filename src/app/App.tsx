@@ -670,9 +670,19 @@ function GetDialog({ t, config, data, avatar, onLogin, onClose }: { t: Dict; con
   useEffect(() => () => abort.current.abort(), []);
 
   const fail = (e: unknown) => {
-    const key = e instanceof InstallError ? e.message : "auth";
-    if (key === "cancel") return;
-    setError((t.installErrors as Record<string, string>)[key] ?? t.installErrors.auth);
+    if (e instanceof InstallError) {
+      if (e.message === "cancel") return;
+      const msg = e.message;
+      // Handle http_404, http_500, etc.
+      const key = msg.startsWith("http_") ? msg : msg;
+      setError((t.installErrors as Record<string, string>)[key] ?? t.installErrors.auth);
+    } else if (e instanceof Error) {
+      // Network errors, CORS, etc.
+      const netKey = e.message.startsWith("network:") ? "network" : "auth";
+      setError((t.installErrors as Record<string, string>)[netKey] ?? t.installErrors.auth);
+    } else {
+      setError(t.installErrors.auth);
+    }
     setPhase("error");
   };
 

@@ -1,4 +1,12 @@
-const AUTH = "https://expressive-profile-auth.sepehr-zahede.workers.dev/api";
+// Default auth proxy URL - replace with your deployed worker URL
+// Can be overridden by localStorage key "ep:auth-url" or VITE_AUTH_URL at build time
+const AUTH = (() => {
+  try {
+    return localStorage.getItem("ep:auth-url") || import.meta.env.VITE_AUTH_URL || "https://expressive-profile-auth.sepehr-zahede.workers.dev/api";
+  } catch {
+    return import.meta.env.VITE_AUTH_URL || "https://expressive-profile-auth.sepehr-zahede.workers.dev/api";
+  }
+})();
 const API = "https://api.github.com";
 
 // Auth
@@ -13,7 +21,23 @@ export interface DeviceCode {
 export class InstallError extends Error {}
 
 async function post(path: string, body: object) {
-  const r = await fetch(`${AUTH}/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const url = `${AUTH}/${path}`;
+  let r: Response;
+  try {
+    r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    throw new InstallError(`network: ${e instanceof Error ? e.message : "fetch failed"}`);
+  }
+  if (!r.ok) {
+    let msg = `http_${r.status}`;
+    try {
+      const err = await r.json();
+      if (err.error) msg += `: ${err.error}`;
+    } catch {
+      // ignore JSON parse error, use status code
+    }
+    throw new InstallError(msg);
+  }
   return r.json();
 }
 

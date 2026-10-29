@@ -1,0 +1,6 @@
+name = "expressive-profile-auth"
+main = "api/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+CLIENT_ID = "Ov23liAEXZsLn6roa8id"

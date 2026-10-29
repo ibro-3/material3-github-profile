@@ -1,5 +1,13 @@
 {
   "name": "expressive-profile-auth",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
 }

@@ -1,20 +1,13 @@
-import { handleCors, forward } from "./_github.js";
+import { handleCors, forward, corsHeaders } from "./_github.js";
 
 export default async function handler(req, env) {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: handleCors(req, env) });
-  }
+  // OPTIONS preflight handled by handleCors
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
 
   // Only allow POST
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405, headers: handleCors(req, env) });
-  }
-
-  // Handle CORS
-  const corsHeaders = handleCors(req, env);
-  if (!corsHeaders) {
-    return new Response("Forbidden", { status: 403, headers: { "Content-Type": "application/json" } });
+    return new Response("Method Not Allowed", { status: 405, headers: corsHeaders(req) });
   }
 
   // Parse body
@@ -24,7 +17,7 @@ export default async function handler(req, env) {
   } catch {
     return new Response(JSON.stringify({ error: "bad_request" }), {
       status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: corsHeaders(req),
     });
   }
 
@@ -32,12 +25,12 @@ export default async function handler(req, env) {
   if (typeof code !== "string" || code.length > 100) {
     return new Response(JSON.stringify({ error: "bad_request" }), {
       status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: corsHeaders(req),
     });
   }
 
   // Forward to GitHub
-  return forward(env, "https://github.com/login/oauth/access_token", {
+  return forward(req, env, "https://github.com/login/oauth/access_token", {
     device_code: code,
     grant_type: "urn:ietf:params:oauth:grant-type:device_code",
   });

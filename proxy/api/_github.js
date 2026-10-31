@@ -1,6 +1,6 @@
 const ORIGINS = ["https://ibro-3.github.io", "http://localhost:5230"];
 
-export function cors(req, env) {
+function getAllowedOrigin(req) {
   const origin = req.headers.get("origin");
   if (ORIGINS.includes(origin)) {
     return origin;
@@ -8,22 +8,39 @@ export function cors(req, env) {
   return null;
 }
 
-export function handleCors(req, env) {
-  const origin = cors(req, env);
-  const headers = new Headers({
+export function corsHeaders(req) {
+  const origin = getAllowedOrigin(req);
+  const h = new Headers({
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Cache-Control": "no-store",
   });
   if (origin) {
-    headers.set("Access-Control-Allow-Origin", origin);
-    headers.set("Vary", "Origin");
+    h.set("Access-Control-Allow-Origin", origin);
+    h.set("Vary", "Origin");
   }
-  return headers;
+  return h;
 }
 
-export async function forward(env, url, body) {
+export function handleCors(req) {
+  // OPTIONS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders(req) });
+  }
+  const allowed = getAllowedOrigin(req);
+  if (!allowed) {
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return null; // OK to proceed
+}
+
+export async function forward(req, env, url, body) {
   const clientId = env.CLIENT_ID || "Ov23liAEXZsLn6roa8id";
+  const h = corsHeaders(req);
+
   let r;
   try {
     r = await fetch(url, {
@@ -34,9 +51,10 @@ export async function forward(env, url, body) {
   } catch {
     return new Response(JSON.stringify({ error: "unavailable" }), {
       status: 502,
-      headers: { "Content-Type": "application/json" },
+      headers: h,
     });
   }
+
   const text = await r.text().catch(() => "");
   let data;
   try {
@@ -44,8 +62,7 @@ export async function forward(env, url, body) {
   } catch {
     data = { error: "unavailable" };
   }
-  return new Response(JSON.stringify(data), {
-    status: r.status,
-    headers: { "Content-Type": "application/json" },
-  });
+
+  h.set("Content-Type", "application/json");
+  return new Response(JSON.stringify(data), { status: r.status, headers: h });
 }
